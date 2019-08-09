@@ -1,41 +1,49 @@
 import { receiveMessageServer, waitForMessage } from "./receiveMessageServer";
-import { VAL, BYE, ADD, MUL, SUM, PRD } from "./Message";
+import { VAL, BYE, ADD, MUL, SUM, PRD, Message, NOMESSAGE } from "./Message";
 import { sendMessage } from "./sendMessage";
 import { roles, initialize, connectedRoles, OneTransitionPossibleException } from "./globalObjects";
 
+enum messages {
+    VAL = "VAL",
+    BYE = "BYE",
+    ADD = "ADD",
+    MUL = "MUL",
+    SUM = "SUM",
+    PRD = "PRD",
+    NOMESSAGE = "NOMESSAGE"
+}
+
 interface IColin {
-    state: string;
+    messageFrom: roles;
+    messageType: messages;
+    message: Message;
 }
 
 interface IColin_S1 extends IColin {
-    readonly state: "S1";
-    sum?: SUM;
-    prd?: PRD;
     sendVAL(val: VAL): Promise<IColin_S2>;
     sendBYE(bye: BYE): Promise<IColin_S3>;
 }
 
 interface IColin_S2 extends IColin {
-    readonly state: "S2";
     sendADD(add: ADD): Promise<IColin_S4>;
     sendMUL(mul: MUL): Promise<IColin_S5>;
 }
 
 interface IColin_S3 extends IColin {
-    readonly state: "S3";
 }
 
 interface IColin_S4 extends IColin {
-    readonly state: "S4";
     recv(): Promise<IColin_S1>;
 }
 
 interface IColin_S5 extends IColin {
-    readonly state: "S5";
     recv(): Promise<IColin_S1>;
 }
 
 abstract class Colin {
+    public messageFrom = roles.colin;
+    public messageType = messages.NOMESSAGE;
+    public message = new NOMESSAGE();
     constructor(protected transitionPossible: boolean = true) { }
     ;
     protected checkOneTransitionPossible() {
@@ -46,9 +54,14 @@ abstract class Colin {
 }
 
 class Colin_S1 extends Colin implements IColin_S1 {
-    public readonly state = "S1";
-    constructor(public sum?: SUM, public prd?: PRD) {
+    constructor(messageFrom?: roles, messageType?: messages, message?: Message) {
         super();
+        if (messageFrom)
+            super.messageFrom = messageFrom;
+        if (messageType)
+            super.messageType = messageType;
+        if (message)
+            super.message = message;
     }
     async sendVAL(val: VAL): Promise<IColin_S2> {
         super.checkOneTransitionPossible();
@@ -63,7 +76,6 @@ class Colin_S1 extends Colin implements IColin_S1 {
 }
 
 class Colin_S2 extends Colin implements IColin_S2 {
-    public readonly state = "S2";
     constructor() {
         super();
     }
@@ -80,7 +92,6 @@ class Colin_S2 extends Colin implements IColin_S2 {
 }
 
 class Colin_S3 extends Colin implements IColin_S3 {
-    public readonly state = "S3";
     constructor() {
         super();
         receiveMessageServer.terminate();
@@ -88,7 +99,6 @@ class Colin_S3 extends Colin implements IColin_S3 {
 }
 
 class Colin_S4 extends Colin implements IColin_S4 {
-    public readonly state = "S4";
     constructor() {
         super();
     }
@@ -103,7 +113,7 @@ class Colin_S4 extends Colin implements IColin_S4 {
         return new Promise(resolve => {
             switch (msg.name + msg.from) {
                 case SUM.name + roles.simon: {
-                    resolve(new Colin_S1((<SUM>msg)));
+                    resolve(new Colin_S1(msg.from, messages.SUM, msg));
                     break;
                 }
             }
@@ -112,7 +122,6 @@ class Colin_S4 extends Colin implements IColin_S4 {
 }
 
 class Colin_S5 extends Colin implements IColin_S5 {
-    public readonly state = "S5";
     constructor() {
         super();
     }
@@ -127,7 +136,7 @@ class Colin_S5 extends Colin implements IColin_S5 {
         return new Promise(resolve => {
             switch (msg.name + msg.from) {
                 case PRD.name + roles.simon: {
-                    resolve(new Colin_S1(undefined, (<PRD>msg)));
+                    resolve(new Colin_S1(msg.from, messages.PRD, msg));
                     break;
                 }
             }
@@ -135,11 +144,15 @@ class Colin_S5 extends Colin implements IColin_S5 {
     }
 }
 
-export { IColin, IColin_S1, IColin_S2, IColin_S3, IColin_S4, IColin_S5 };
+type Colin_Start = IColin_S1;
+type Colin_End = IColin_S3;
 
-export async function executeProtocol(f: (IColin_S1: IColin_S1) => Promise<IColin_S3>, host: string, port: number) {
+async function executeProtocol(f: (Colin_Start: Colin_Start) => Promise<Colin_End>, host: string, port: number) {
     console.log(`Colin started ${new Date()}`);
     await initialize(roles.colin, port, host);
     let done = await f(new Colin_S1());
-    return new Promise<IColin_S3>(resolve => resolve(done));
+    return new Promise<Colin_End>(resolve => resolve(done));
 }
+
+export { IColin, IColin_S1, IColin_S2, IColin_S3, IColin_S4, IColin_S5, messages, Colin_Start, Colin_End, executeProtocol, roles };
+
