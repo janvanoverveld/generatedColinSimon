@@ -9,14 +9,10 @@ enum messages {
     ADD = "ADD",
     MUL = "MUL",
     SUM = "SUM",
-    PRD = "PRD",
-    NOMESSAGE = "NOMESSAGE"
+    PRD = "PRD"
 }
 
 interface ISimon {
-    messageFrom: roles;
-    messageType: messages;
-    message: Message;
 }
 
 interface ISimon_S1 extends ISimon {
@@ -24,24 +20,33 @@ interface ISimon_S1 extends ISimon {
 }
 
 interface ISimon_S2 extends ISimon {
+    readonly messageFrom: roles.colin;
+    readonly messageType: messages.VAL;
+    message: VAL;
     recv(): Promise<ISimon_S4 | ISimon_S5>;
 }
 
 interface ISimon_S3 extends ISimon {
+    readonly messageFrom: roles.colin;
+    readonly messageType: messages.BYE;
+    message: BYE;
 }
 
 interface ISimon_S4 extends ISimon {
+    readonly messageFrom: roles.colin;
+    readonly messageType: messages.ADD;
+    message: ADD;
     sendSUM(sum: SUM): Promise<ISimon_S1>;
 }
 
 interface ISimon_S5 extends ISimon {
+    readonly messageFrom: roles.colin;
+    readonly messageType: messages.MUL;
+    message: MUL;
     sendPRD(prd: PRD): Promise<ISimon_S1>;
 }
 
-abstract class Simon {
-    public messageFrom = roles.simon;
-    public messageType = messages.NOMESSAGE;
-    public message = new NOMESSAGE();
+abstract class Simon implements ISimon {
     constructor(protected transitionPossible: boolean = true) { }
     ;
     protected checkOneTransitionPossible() {
@@ -66,11 +71,11 @@ class Simon_S1 extends Simon implements ISimon_S1 {
         return new Promise(resolve => {
             switch (msg.name + msg.from) {
                 case VAL.name + roles.colin: {
-                    resolve(new Simon_S2(msg.from, messages.VAL, msg));
+                    resolve(new Simon_S2((<VAL>msg)));
                     break;
                 }
                 case BYE.name + roles.colin: {
-                    resolve(new Simon_S3(msg.from, messages.BYE, msg));
+                    resolve(new Simon_S3((<BYE>msg)));
                     break;
                 }
             }
@@ -79,11 +84,10 @@ class Simon_S1 extends Simon implements ISimon_S1 {
 }
 
 class Simon_S2 extends Simon implements ISimon_S2 {
-    constructor(messageFrom: roles, messageType: messages, message: Message) {
+    readonly messageFrom = roles.colin;
+    readonly messageType = messages.VAL;
+    constructor(public message: VAL) {
         super();
-        super.messageFrom = messageFrom;
-        super.messageType = messageType;
-        super.message = message;
     }
     async recv(): Promise<ISimon_S4 | ISimon_S5> {
         try {
@@ -96,11 +100,11 @@ class Simon_S2 extends Simon implements ISimon_S2 {
         return new Promise(resolve => {
             switch (msg.name + msg.from) {
                 case ADD.name + roles.colin: {
-                    resolve(new Simon_S4(msg.from, messages.ADD, msg));
+                    resolve(new Simon_S4((<ADD>msg)));
                     break;
                 }
                 case MUL.name + roles.colin: {
-                    resolve(new Simon_S5(msg.from, messages.MUL, msg));
+                    resolve(new Simon_S5((<MUL>msg)));
                     break;
                 }
             }
@@ -109,21 +113,19 @@ class Simon_S2 extends Simon implements ISimon_S2 {
 }
 
 class Simon_S3 extends Simon implements ISimon_S3 {
-    constructor(messageFrom: roles, messageType: messages, message: Message) {
+    readonly messageFrom = roles.colin;
+    readonly messageType = messages.BYE;
+    constructor(public message: BYE) {
         super();
-        super.messageFrom = messageFrom;
-        super.messageType = messageType;
-        super.message = message;
         receiveMessageServer.terminate();
     }
 }
 
 class Simon_S4 extends Simon implements ISimon_S4 {
-    constructor(messageFrom: roles, messageType: messages, message: Message) {
+    readonly messageFrom = roles.colin;
+    readonly messageType = messages.ADD;
+    constructor(public message: ADD) {
         super();
-        super.messageFrom = messageFrom;
-        super.messageType = messageType;
-        super.message = message;
     }
     async sendSUM(sum: SUM): Promise<ISimon_S1> {
         super.checkOneTransitionPossible();
@@ -133,11 +135,10 @@ class Simon_S4 extends Simon implements ISimon_S4 {
 }
 
 class Simon_S5 extends Simon implements ISimon_S5 {
-    constructor(messageFrom: roles, messageType: messages, message: Message) {
+    readonly messageFrom = roles.colin;
+    readonly messageType = messages.MUL;
+    constructor(public message: MUL) {
         super();
-        super.messageFrom = messageFrom;
-        super.messageType = messageType;
-        super.message = message;
     }
     async sendPRD(prd: PRD): Promise<ISimon_S1> {
         super.checkOneTransitionPossible();
@@ -156,5 +157,5 @@ async function executeProtocol(f: (Simon_Start: Simon_Start) => Promise<Simon_En
     return new Promise<Simon_End>(resolve => resolve(done));
 }
 
-export { ISimon, ISimon_S1, ISimon_S2, ISimon_S3, ISimon_S4, ISimon_S5, messages, Simon_Start, Simon_End, executeProtocol, roles };
+export { ISimon, ISimon_S2, ISimon_S4, ISimon_S5, messages, Simon_Start, Simon_End, executeProtocol, roles };
 

@@ -9,19 +9,27 @@ enum messages {
     ADD = "ADD",
     MUL = "MUL",
     SUM = "SUM",
-    PRD = "PRD",
-    NOMESSAGE = "NOMESSAGE"
+    PRD = "PRD"
 }
 
 interface IColin {
-    messageFrom: roles;
-    messageType: messages;
-    message: Message;
 }
 
 interface IColin_S1 extends IColin {
     sendVAL(val: VAL): Promise<IColin_S2>;
     sendBYE(bye: BYE): Promise<IColin_S3>;
+}
+
+interface IColin_S1_1 extends IColin_S1 {
+    readonly messageFrom: roles.simon;
+    readonly messageType: messages.SUM;
+    message: SUM;
+}
+
+interface IColin_S1_2 extends IColin_S1 {
+    readonly messageFrom: roles.simon;
+    readonly messageType: messages.PRD;
+    message: PRD;
 }
 
 interface IColin_S2 extends IColin {
@@ -33,17 +41,14 @@ interface IColin_S3 extends IColin {
 }
 
 interface IColin_S4 extends IColin {
-    recv(): Promise<IColin_S1>;
+    recv(): Promise<IColin_S1_1>;
 }
 
 interface IColin_S5 extends IColin {
-    recv(): Promise<IColin_S1>;
+    recv(): Promise<IColin_S1_2>;
 }
 
-abstract class Colin {
-    public messageFrom = roles.colin;
-    public messageType = messages.NOMESSAGE;
-    public message = new NOMESSAGE();
+abstract class Colin implements IColin {
     constructor(protected transitionPossible: boolean = true) { }
     ;
     protected checkOneTransitionPossible() {
@@ -54,14 +59,8 @@ abstract class Colin {
 }
 
 class Colin_S1 extends Colin implements IColin_S1 {
-    constructor(messageFrom?: roles, messageType?: messages, message?: Message) {
+    constructor() {
         super();
-        if (messageFrom)
-            super.messageFrom = messageFrom;
-        if (messageType)
-            super.messageType = messageType;
-        if (message)
-            super.message = message;
     }
     async sendVAL(val: VAL): Promise<IColin_S2> {
         super.checkOneTransitionPossible();
@@ -72,6 +71,20 @@ class Colin_S1 extends Colin implements IColin_S1 {
         super.checkOneTransitionPossible();
         await sendMessage(roles.colin, roles.simon, bye);
         return new Promise(resolve => resolve(new Colin_S3));
+    }
+}
+class Colin_S1_1 extends Colin_S1 implements IColin_S1_1 {
+    readonly messageFrom = roles.simon;
+    readonly messageType = messages.SUM;
+    constructor(public message: SUM) {
+        super();
+    }
+}
+class Colin_S1_2 extends Colin_S1 implements IColin_S1_2 {
+    readonly messageFrom = roles.simon;
+    readonly messageType = messages.PRD;
+    constructor(public message: PRD) {
+        super();
     }
 }
 
@@ -102,7 +115,7 @@ class Colin_S4 extends Colin implements IColin_S4 {
     constructor() {
         super();
     }
-    async recv(): Promise<IColin_S1> {
+    async recv(): Promise<IColin_S1_1> {
         try {
             super.checkOneTransitionPossible();
         }
@@ -113,7 +126,7 @@ class Colin_S4 extends Colin implements IColin_S4 {
         return new Promise(resolve => {
             switch (msg.name + msg.from) {
                 case SUM.name + roles.simon: {
-                    resolve(new Colin_S1(msg.from, messages.SUM, msg));
+                    resolve(new Colin_S1_1((<SUM>msg)));
                     break;
                 }
             }
@@ -125,7 +138,7 @@ class Colin_S5 extends Colin implements IColin_S5 {
     constructor() {
         super();
     }
-    async recv(): Promise<IColin_S1> {
+    async recv(): Promise<IColin_S1_2> {
         try {
             super.checkOneTransitionPossible();
         }
@@ -136,7 +149,7 @@ class Colin_S5 extends Colin implements IColin_S5 {
         return new Promise(resolve => {
             switch (msg.name + msg.from) {
                 case PRD.name + roles.simon: {
-                    resolve(new Colin_S1(msg.from, messages.PRD, msg));
+                    resolve(new Colin_S1_2((<PRD>msg)));
                     break;
                 }
             }
@@ -154,5 +167,5 @@ async function executeProtocol(f: (Colin_Start: Colin_Start) => Promise<Colin_En
     return new Promise<Colin_End>(resolve => resolve(done));
 }
 
-export { IColin, IColin_S1, IColin_S2, IColin_S3, IColin_S4, IColin_S5, messages, Colin_Start, Colin_End, executeProtocol, roles };
+export { IColin, IColin_S2, IColin_S4, IColin_S5, messages, Colin_Start, Colin_End, executeProtocol, roles };
 
